@@ -1,0 +1,1979 @@
+/* 窯ログ — 冷窯断面 / Cold Kiln Section
+ *
+ * 世界観: 焚き終わって完全に冷え切った窯を開けて、中を覗いている状態。
+ * 画面は窯の立面断面図そのもので、上から下へ棚段が積層し、両脇を支柱が貫き、
+ * いちばん下に炉床がある。炉床の下には温度カーブが基線として横たわる。
+ *
+ * この設計の鉄則:
+ *   筐体は冷えている。熱を持つのはユーザーのデータだけ。
+ *   UI（煉瓦・棚板・支柱・炉床）は無彩色〜寒色に徹し、グロー・発光・炎を一切持たない。
+ *   彩度を持てるのは (a) 釉薬の発色写真 (b) ユーザーが置いた色メモ の2つだけ。
+ *   これは趣味ではなく機能要件で、色片比較が製品の生死を決めるから UI が色を持てない。
+ *
+ * 実装上の禁止事項（崩すと世界観が壊れる）:
+ *   R1 アクセントを本文・数値・見出しの文字色に使わない（輪郭・選択面・小リンクのみ）
+ *   R2 box-shadow による elevation 禁止（フォーカス環のハローだけ例外）
+ *   R3 暖色グロー・発光グラデーション・炎表現の禁止
+ *   R4 角丸は最大 4px（pill・全円を作らない）
+ *   R5 情報を色だけで伝えない（必ずパターン＋文字ラベルを併記）
+ *   R6 失敗結果を danger 赤で塗らない（失敗は記録であってエラーではない）
+ *   R7 セマンティック色は accent と danger の2つだけ
+ */
+
+/* ===========================================================================
+   0. 機能的リセット
+   =========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+/* ===========================================================================
+   1. トークン
+   =========================================================================== */
+
+:root {
+  color-scheme: light dark;
+
+  /* 筐体 / 無彩〜寒色 */
+  --k-void: #f2f5f7;
+  --k-slab: #e4e8eb;
+  --k-tile: #fcfeff;
+  --k-hair: #cad0d5;
+  --k-rule: #798288;
+  --k-ink: #191f23;
+  --k-ink-2: #555c61;
+
+  /* 灰釉オリーブ（唯一のアクセント） */
+  --k-accent: #5a590f;
+  --k-accent-soft: #eaeac8;
+  --k-on-accent: #fcfeff;
+
+  /* 危険（システムエラーのみ・失敗結果には使わない） */
+  --k-danger: #9e2d28;
+  --k-danger-soft: #fce5e2;
+
+  --k-focus: var(--k-accent);
+  --k-focus-halo: var(--k-void);
+
+  /* 配合バーのグレースケール5段（着色材以外） */
+  --k-mix-1: #ccd2d6;
+  --k-mix-2: #b6bbbf;
+  --k-mix-3: #a0a5a9;
+  --k-mix-4: #8b9094;
+  --k-mix-5: #767b7f;
+
+  /* 目地は「そこに煉瓦がある」と分かる最小限まで落とす。
+   * 上げると壁のテクスチャが主役になり、hero の文字と競合する。 */
+  --k-coursing: rgba(25, 31, 35, 0.05);
+
+  /* 角丸 — この3つ以外は使わない */
+  --r-1: 2px;
+  --r-2: 3px;
+  --r-3: 4px;
+
+  /* タイポ — Web フォントは読み込まない。等幅・明朝・丸ゴシックを定義しない。 */
+  --font-sans:
+    system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", "Hiragino Kaku Gothic ProN",
+    "Hiragino Sans", "BIZ UDPGothic", "Yu Gothic Medium", "Yu Gothic", "YuGothic", "Noto Sans JP",
+    "Meiryo", sans-serif;
+}
+
+/* dark は「システムがダーク かつ ユーザーが light を明示していない」ときに当たる。 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --k-void: #101316;
+    --k-slab: #1c2125;
+    --k-tile: #272c30;
+    --k-hair: #3c4247;
+    --k-rule: #798288;
+    --k-ink: #eaedf0;
+    --k-ink-2: #acb2b7;
+    --k-accent: #cbca73;
+    --k-accent-soft: #383713;
+    --k-on-accent: #101316;
+    --k-danger: #f7988e;
+    --k-danger-soft: #4a231f;
+    --k-mix-1: #44484c;
+    --k-mix-2: #575b5f;
+    --k-mix-3: #6b6f73;
+    --k-mix-4: #7f8488;
+    --k-mix-5: #94999d;
+    --k-coursing: rgba(234, 237, 240, 0.09);
+  }
+}
+
+/* トグルで明示された dark は、システムが light でも当たる。 */
+:root[data-theme="dark"] {
+  --k-void: #101316;
+  --k-slab: #1c2125;
+  --k-tile: #272c30;
+  --k-hair: #3c4247;
+  --k-rule: #798288;
+  --k-ink: #eaedf0;
+  --k-ink-2: #acb2b7;
+  --k-accent: #cbca73;
+  --k-accent-soft: #383713;
+  --k-on-accent: #101316;
+  --k-danger: #f7988e;
+  --k-danger-soft: #4a231f;
+  --k-mix-1: #44484c;
+  --k-mix-2: #575b5f;
+  --k-mix-3: #6b6f73;
+  --k-mix-4: #7f8488;
+  --k-mix-5: #94999d;
+  --k-coursing: rgba(234, 237, 240, 0.09);
+}
+
+/* コントラスト強調の希望があれば、線と補助文字を一段強くする。 */
+@media (prefers-contrast: more) {
+  :root {
+    --k-hair: var(--k-rule);
+    --k-ink-2: var(--k-ink);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ===========================================================================
+   2. 土台
+   =========================================================================== */
+
+body {
+  background: var(--k-void);
+  color: var(--k-ink);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.75;
+  letter-spacing: 0.01em;
+  /* 和文の禁則。長い調合名で崩れないように。 */
+  word-break: normal;
+  overflow-wrap: anywhere;
+  line-break: strict;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+  font-weight: 700;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* 数値は等幅フォントではなく tabular-nums で揃える（等幅書体を持ち込まない）。 */
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+a {
+  color: var(--k-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* フォーカス環 — 唯一許される box-shadow */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--k-focus);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--k-focus-halo);
+  border-radius: var(--r-3);
+}
+
+@media (forced-colors: active) {
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid Highlight;
+  }
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 12px 16px;
+  background: var(--k-accent);
+  color: var(--k-on-accent);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0 0 var(--r-3) 0;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ===========================================================================
+   3. タイポスケール
+   極端なコントラスト（詰まった大見出し × 0.14em の極小ラベル）で緊張感を作る。
+   中間サイズをほとんど置かないのがこの製品のタイポ署名。
+   =========================================================================== */
+
+.t-display {
+  font-size: clamp(2rem, 5.4vw, 4.5rem);
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.t-h1 {
+  font-size: 2rem;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.t-h2 {
+  font-size: 1.375rem;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.t-h3 {
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.t-small {
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+
+/* 12px 未満にしない（和文の可読性が落ちるため下限を規約にする）。 */
+.t-label {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--k-ink-2);
+}
+
+.t-num-l {
+  font-size: 1.75rem;
+  line-height: 1.1;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.t-num-m {
+  font-size: 1.0625rem;
+  line-height: 1.2;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.t-id {
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===========================================================================
+   4. 煉瓦目地テクスチャ（hero / 炉床のみ・画像リクエスト 0）
+   煉瓦幅 78px・半枚ずらしの馬目地。テクスチャ以上の主張をさせない。
+   =========================================================================== */
+
+/* 目地は擬似要素に描く。
+ * SVG の stroke に currentColor を使うため color を指定するが、それを .coursing 自身に
+ * 置くと中の見出し・本文まで目地色（不透明度 9%）を継承して読めなくなる。 */
+.coursing {
+  position: relative;
+  background-color: var(--k-slab);
+}
+
+.coursing::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: var(--k-coursing);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='156' height='48' fill='none' stroke='currentColor' stroke-width='1'%3E%3Cpath d='M0 .5h156M0 24.5h156M39.5 0v24M117.5 0v24M.5 24v24M78.5 24v24'/%3E%3C/svg%3E");
+}
+
+/* 目地の上に内容を載せる */
+.coursing > * {
+  position: relative;
+}
+
+/* ===========================================================================
+   5. 天板バー
+   =========================================================================== */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 56px;
+  padding: 0 16px;
+  background: var(--k-void);
+  border-bottom: 3px solid var(--k-rule);
+}
+
+.topbar__mark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  color: var(--k-ink);
+  white-space: nowrap;
+}
+
+/* ロゴ代わりの棚段記号。3本の横線＝積層した棚板。 */
+.topbar__stack {
+  display: block;
+  width: 18px;
+  height: 14px;
+  border-top: 2px solid var(--k-rule);
+  border-bottom: 2px solid var(--k-rule);
+  position: relative;
+}
+
+.topbar__stack::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 4px;
+  border-top: 2px solid var(--k-rule);
+}
+
+.topbar__nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.topbar__link {
+  display: inline-flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 12px;
+  color: var(--k-ink-2);
+  text-decoration: none;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+  border-radius: var(--r-2);
+}
+
+.topbar__link:hover {
+  color: var(--k-ink);
+  background: var(--k-slab);
+}
+
+.topbar__link[aria-current="page"] {
+  color: var(--k-ink);
+  font-weight: 700;
+  /* 現在地は色ではなく下辺の線で示す（色だけに頼らない）。 */
+  box-shadow: inset 0 -3px 0 var(--k-accent);
+}
+
+.topbar__tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+@media (max-width: 767px) {
+  .topbar {
+    height: 52px;
+    padding: 0 8px;
+    gap: 8px;
+  }
+
+  .topbar__link {
+    padding: 0 8px;
+    font-size: 0.875rem;
+  }
+}
+
+/* テーマ切替 */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-3);
+  color: var(--k-ink);
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  border-color: var(--k-accent);
+  background: var(--k-accent-soft);
+}
+
+/* ===========================================================================
+   6. 炉口 hero
+   =========================================================================== */
+
+.hero {
+  padding: 64px 24px 56px;
+  border-bottom: 3px solid var(--k-rule);
+}
+
+.hero__inner {
+  max-width: 1160px;
+  margin: 0 auto;
+}
+
+.hero__title {
+  max-width: 18em;
+}
+
+.hero__lead {
+  margin-top: 20px;
+  max-width: 34em;
+  font-size: 1.0625rem;
+  color: var(--k-ink);
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.hero__meta {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--k-rule);
+  max-width: 34em;
+  color: var(--k-ink-2);
+}
+
+@media (max-width: 767px) {
+  .hero {
+    padding: 36px 16px 32px;
+  }
+
+  .hero__actions {
+    flex-direction: column;
+  }
+
+  .hero__actions > * {
+    width: 100%;
+  }
+}
+
+/* 下位ページの炉口ミニ帯（hero の代わりに世界観の連続性だけ担保する） */
+.lintel {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--k-rule);
+}
+
+.lintel__inner {
+  max-width: 1160px;
+  margin: 0 auto;
+  width: 100%;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: var(--k-ink-2);
+}
+
+.lintel a {
+  color: var(--k-ink-2);
+}
+
+/* ===========================================================================
+   7. 断面（棚スタック）
+   =========================================================================== */
+
+.section {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 40px 24px 64px;
+}
+
+@media (max-width: 767px) {
+  .section {
+    padding: 24px 0 48px;
+  }
+
+  .section > *:not(.kiln):not(.baseline) {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+.section__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.kiln {
+  /* 支柱。窯の構造材はテーマで色が変わらない。 */
+  border-left: 4px solid var(--k-rule);
+  border-right: 4px solid var(--k-rule);
+  border-top: 1px solid var(--k-hair);
+  border-radius: var(--r-1) var(--r-1) 0 0;
+}
+
+@media (max-width: 767px) {
+  .kiln {
+    border-left-width: 3px;
+    border-right-width: 3px;
+    border-radius: 0;
+  }
+}
+
+.shelf {
+  background: var(--k-slab);
+  /* 棚板の小口。影ではなく線幅で板の厚みを出す。 */
+  border-bottom: 3px solid var(--k-rule);
+}
+
+.shelf__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 4px 16px;
+  flex-wrap: wrap;
+}
+
+.shelf__no {
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.shelf__sub {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--k-ink-2);
+}
+
+.shelf__count {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--k-ink-2);
+}
+
+.shelf__spacer {
+  flex: 1 1 auto;
+}
+
+.shelf__body {
+  display: flex;
+  gap: 12px;
+  padding: 0 16px 16px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+}
+
+.shelf__body > * {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+}
+
+.shelf__empty {
+  font-size: 0.8125rem;
+  color: var(--k-ink-2);
+  padding: 0 16px 16px;
+}
+
+/* 炉床 */
+.hearth {
+  height: 32px;
+  border: 4px solid var(--k-rule);
+  border-top: 0;
+  border-radius: 0 0 var(--r-1) var(--r-1);
+}
+
+@media (max-width: 767px) {
+  .hearth {
+    border-left-width: 3px;
+    border-right-width: 3px;
+    border-radius: 0;
+  }
+}
+
+/* ===========================================================================
+   8. テストピースタイル
+   =========================================================================== */
+
+.tile {
+  display: block;
+  width: 132px;
+  background: var(--k-tile);
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-2);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+.tile:hover {
+  border-color: var(--k-accent);
+  transform: translateY(-2px);
+  /* R2 の例外ではなく inset の内側線。elevation を作らない。 */
+  box-shadow: inset 0 2px 0 var(--k-accent);
+}
+
+.tile:active {
+  transform: translateY(0);
+  background: var(--k-slab);
+}
+
+.tile__face {
+  position: relative;
+  width: 100%;
+  height: 112px;
+  background: var(--k-slab);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tile__face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 写真なしは欠落物ではなく正規の記録。枠線・寸法は通常タイルと完全に同一。 */
+.tile__face--none {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--k-hair) 0 1px,
+    transparent 1px 7px
+  );
+}
+
+.tile__face-code {
+  font-size: 1.25rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--k-ink);
+}
+
+.tile__face-note {
+  font-size: 0.75rem;
+  color: var(--k-ink-2);
+}
+
+/* 色メモは実際の色を出す。ハッチを重ねない（色の読み取りを妨げないため）。 */
+.tile__face--memo {
+  background-image: none;
+}
+
+.tile__memo-mark {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  background: var(--k-tile);
+  color: var(--k-ink-2);
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+}
+
+.tile__info {
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--k-hair);
+  height: 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tile__code {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 情報帯は 64px 固定なので、本文の行送り(1.75)のままだと
+ * 識別番号＋調合名＋結果マークが入り切らず下が切れる。ここだけ詰める。 */
+.tile__recipe {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--k-ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile__code {
+  line-height: 1.2;
+}
+
+.tile__marks {
+  display: flex;
+  gap: 3px;
+  margin-top: auto;
+}
+
+.tile__mark {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--k-rule);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--k-ink-2) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+/* 空きスロット（ゴースト）— 「ここに置ける」ことを形で伝える */
+.tile--ghost {
+  width: 132px;
+  height: 176px;
+  border: 1px dashed var(--k-rule);
+  border-radius: var(--r-2);
+  background: transparent;
+}
+
+@media (max-width: 767px) {
+  .tile,
+  .tile--ghost {
+    width: 104px;
+  }
+
+  .tile__face {
+    height: 92px;
+  }
+
+  .tile__info {
+    height: 60px;
+  }
+
+  .tile--ghost {
+    height: 152px;
+  }
+}
+
+/* スケルトン。読み込み中も「棚に何かが載っている」形を保ち、
+ * 面ごとに色が割れて壊れて見えないよう単一のトーンで塗る。 */
+.tile--loading,
+.tile--loading .tile__face,
+.tile--loading .tile__info {
+  background: var(--k-slab);
+  border-color: var(--k-hair);
+}
+
+.tile--loading .tile__face {
+  animation: tile-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes tile-pulse {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile--loading .tile__face {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* ===========================================================================
+   9. 基線（温度カーブ）
+   =========================================================================== */
+
+.baseline {
+  margin-top: 24px;
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+  background: var(--k-void);
+}
+
+.baseline__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--k-hair);
+}
+
+.baseline__body {
+  padding: 16px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.baseline__empty {
+  padding: 24px 16px;
+  color: var(--k-ink-2);
+  font-size: 0.8125rem;
+  border-top: 1px dashed var(--k-rule);
+  margin: 0 16px 16px;
+}
+
+.spark {
+  display: block;
+}
+
+.spark__line {
+  fill: none;
+  stroke: var(--k-ink-2);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.spark__point {
+  fill: var(--k-ink-2);
+}
+
+.spark__point--max {
+  fill: var(--k-accent);
+}
+
+.spark__axis {
+  stroke: var(--k-rule);
+  stroke-width: 1;
+}
+
+.spark__target {
+  stroke: var(--k-rule);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  fill: none;
+}
+
+/* 雰囲気帯 — 色相差を持たせず、形（点/線/ハッチ）で区別する */
+.atmos-band {
+  height: 10px;
+  border: 1px solid var(--k-hair);
+  border-radius: var(--r-1);
+  display: flex;
+  overflow: hidden;
+}
+
+.atmos-band__seg {
+  height: 100%;
+}
+
+.atmos-band__seg--oxidation {
+  background-image: radial-gradient(currentColor 0.5px, transparent 0.6px);
+  background-size: 3px 3px;
+  color: var(--k-ink-2);
+}
+
+.atmos-band__seg--neutral {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    currentColor 0 1px,
+    transparent 1px 4px
+  );
+  color: var(--k-ink-2);
+}
+
+.atmos-band__seg--reduction {
+  background-image: repeating-linear-gradient(
+    45deg,
+    currentColor 0 1px,
+    transparent 1px 4px
+  );
+  color: var(--k-ink-2);
+}
+
+/* 数値サマリ — カードではなく罫線で分割した帯 */
+.readout {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+  overflow: hidden;
+}
+
+.readout__cell {
+  padding: 12px 16px;
+  border-right: 1px solid var(--k-hair);
+}
+
+.readout__cell:last-child {
+  border-right: 0;
+}
+
+.readout__value {
+  margin-top: 4px;
+  font-size: 1.75rem;
+  line-height: 1.1;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 767px) {
+  .readout {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .readout__cell:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .readout__cell:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--k-hair);
+  }
+}
+
+/* ===========================================================================
+   10. ボタン
+   =========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: var(--r-3);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--k-ink);
+}
+
+.btn--primary {
+  min-height: 48px;
+  padding: 0 24px;
+  background: var(--k-accent);
+  color: var(--k-on-accent);
+  border-color: var(--k-accent);
+}
+
+.btn--primary:hover {
+  filter: brightness(1.08);
+}
+
+.btn--primary:focus-visible {
+  box-shadow:
+    0 0 0 4px var(--k-focus-halo),
+    inset 0 0 0 2px var(--k-on-accent);
+}
+
+.btn--secondary {
+  border-color: var(--k-rule);
+}
+
+.btn--secondary:hover {
+  border-color: var(--k-accent);
+  background: var(--k-accent-soft);
+}
+
+.btn--quiet {
+  color: var(--k-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  padding: 0 8px;
+}
+
+.btn--quiet:hover {
+  text-decoration-thickness: 2px;
+}
+
+.btn--danger {
+  border-color: var(--k-danger);
+  color: var(--k-danger);
+}
+
+.btn--danger:hover {
+  background: var(--k-danger-soft);
+}
+
+.btn[disabled],
+.btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn--small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 0.875rem;
+  position: relative;
+}
+
+/* 見た目は 36px でも触れる範囲は 44px を確保する */
+.btn--small::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
+/* ===========================================================================
+   11. フォーム
+   =========================================================================== */
+
+.field {
+  display: block;
+  margin-top: 24px;
+}
+
+.field__label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--k-ink-2);
+  margin-bottom: 6px;
+}
+
+.field__hint {
+  margin-top: 6px;
+  font-size: 0.8125rem;
+  color: var(--k-ink-2);
+}
+
+.field__error {
+  margin-top: 6px;
+  font-size: 0.8125rem;
+  color: var(--k-danger);
+  font-weight: 600;
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  background: var(--k-tile);
+  color: var(--k-ink);
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-2);
+}
+
+.textarea {
+  min-height: 132px;
+  line-height: 1.75;
+  resize: vertical;
+}
+
+.input[aria-invalid="true"],
+.textarea[aria-invalid="true"] {
+  border-width: 2px;
+  border-color: var(--k-danger);
+}
+
+.input--num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.form-block {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--k-hair);
+}
+
+.form-block:first-of-type {
+  border-top: 0;
+}
+
+/* ===========================================================================
+   12. セグメント（雰囲気・判断）
+   色ではなくパターン＋文字で区別する。
+   =========================================================================== */
+
+.segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.segment {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 96px;
+  padding: 0 14px;
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-2);
+  color: var(--k-ink-2);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segment:hover {
+  border-color: var(--k-accent);
+}
+
+.segment input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.segment:has(input:checked) {
+  border: 2px solid var(--k-accent);
+  background: var(--k-accent-soft);
+  color: var(--k-ink);
+  font-weight: 700;
+}
+
+.segment:has(input:focus-visible) {
+  outline: 2px solid var(--k-focus);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--k-focus-halo);
+}
+
+.segment__swatch {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--k-rule);
+  flex: 0 0 auto;
+  color: var(--k-ink-2);
+}
+
+.segment__swatch--dots {
+  background-image: radial-gradient(currentColor 0.5px, transparent 0.6px);
+  background-size: 3px 3px;
+}
+
+.segment__swatch--line {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    currentColor 0 1px,
+    transparent 1px 4px
+  );
+}
+
+.segment__swatch--hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    currentColor 0 1px,
+    transparent 1px 4px
+  );
+}
+
+/* 結果タグ — 吉凶を色で区別しない。良好も貫入も同じ見た目。 */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--k-ink-2);
+  cursor: pointer;
+  background: transparent;
+}
+
+/* 見た目 32px・触れる範囲 44px */
+.tag::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+}
+
+.tag input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.tag:hover {
+  border-color: var(--k-accent);
+}
+
+.tag:has(input:checked) {
+  border: 2px solid var(--k-accent);
+  background: var(--k-accent-soft);
+  color: var(--k-ink);
+}
+
+.tag:has(input:focus-visible) {
+  outline: 2px solid var(--k-focus);
+  outline-offset: 2px;
+}
+
+.tag__swatch {
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--k-rule);
+  color: var(--k-ink-2);
+  background-image: repeating-linear-gradient(
+    45deg,
+    currentColor 0 1px,
+    transparent 1px 3px
+  );
+  flex: 0 0 auto;
+}
+
+/* ===========================================================================
+   13. 配合レール / 配合バー
+   =========================================================================== */
+
+.mix-rail {
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+  background: var(--k-slab);
+}
+
+.mix-row {
+  display: grid;
+  grid-template-columns: 1fr 96px 72px 44px;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 4px 8px 4px 12px;
+  border-bottom: 1px solid var(--k-hair);
+}
+
+.mix-row:last-of-type {
+  border-bottom: 0;
+}
+
+.mix-row__percent {
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--k-ink-2);
+}
+
+.mix-row__remove {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--r-2);
+  background: transparent;
+  color: var(--k-ink-2);
+  cursor: pointer;
+}
+
+.mix-row__remove:hover {
+  border-color: var(--k-danger);
+  color: var(--k-danger);
+}
+
+.mix-row__colorant {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--k-ink-2);
+  white-space: nowrap;
+}
+
+.mix-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-top: 1px solid var(--k-rule);
+}
+
+@media (max-width: 640px) {
+  .mix-row {
+    grid-template-columns: 1fr 80px 44px;
+    grid-template-areas:
+      "material parts remove"
+      "colorant percent percent";
+  }
+
+  .mix-row__material {
+    grid-area: material;
+  }
+
+  .mix-row__parts {
+    grid-area: parts;
+  }
+
+  .mix-row__remove {
+    grid-area: remove;
+  }
+
+  .mix-row__colorant {
+    grid-area: colorant;
+  }
+
+  .mix-row__percent {
+    grid-area: percent;
+  }
+}
+
+.mix-bar {
+  display: flex;
+  height: 14px;
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+  overflow: hidden;
+}
+
+.mix-bar--slim {
+  height: 10px;
+}
+
+.mix-bar__seg {
+  min-width: 6px;
+  border-right: 1px solid var(--k-void);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--k-ink);
+  padding: 0 3px;
+  white-space: nowrap;
+}
+
+.mix-bar__seg:last-child {
+  border-right: 0;
+}
+
+/* 着色材はベタ塗りにせずハッチ。少量でも見えるよう min-width を保証済み。 */
+.mix-bar__seg--colorant {
+  color: var(--k-accent);
+  background-image: repeating-linear-gradient(
+    45deg,
+    currentColor 0 1px,
+    transparent 1px 4px
+  );
+}
+
+.mix-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--k-ink-2);
+}
+
+.mix-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mix-legend__chip {
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--k-rule);
+  flex: 0 0 auto;
+}
+
+/* ===========================================================================
+   14. 比較レール（製品の生死を決める面）
+   =========================================================================== */
+
+.compare {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+}
+
+.compare table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+}
+
+.compare th,
+.compare td {
+  border-bottom: 1px solid var(--k-hair);
+  border-right: 1px solid var(--k-hair);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.compare tr:last-child th,
+.compare tr:last-child td {
+  border-bottom: 0;
+}
+
+.compare__axis {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  width: 116px;
+  min-width: 116px;
+  background: var(--k-slab);
+  border-right: 2px solid var(--k-rule);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--k-ink-2);
+  text-align: right;
+}
+
+.compare__col {
+  width: 168px;
+  min-width: 168px;
+  scroll-snap-align: start;
+  background: var(--k-void);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+.compare td {
+  width: 168px;
+  min-width: 168px;
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 差分 — 前の列と値が変わったセル。比較の読み取りを一瞬にする核心。 */
+.compare td[data-changed="true"] {
+  border-left: 3px solid var(--k-accent);
+  padding-left: 9px;
+}
+
+.compare__swatch-cell {
+  padding: 12px;
+}
+
+.compare__note {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  min-width: 168px;
+}
+
+@media (max-width: 767px) {
+  .compare__axis {
+    width: 96px;
+    min-width: 96px;
+  }
+
+  .compare__col,
+  .compare td {
+    width: 132px;
+    min-width: 132px;
+  }
+}
+
+/* 色片チップ — 周囲に余白を必ず取る（隣接色による同時対比を避ける） */
+.swatch {
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-2);
+  object-fit: cover;
+  display: block;
+}
+
+.swatch--sm {
+  width: 24px;
+  height: 24px;
+}
+
+.swatch--md {
+  width: 96px;
+  height: 96px;
+}
+
+.swatch--lg {
+  width: 200px;
+  height: 200px;
+}
+
+.swatch--none {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--k-hair) 0 1px,
+    transparent 1px 7px
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: var(--k-ink-2);
+  text-align: center;
+}
+
+/* 「色片だけを並べる」モード */
+.swatch-strip {
+  display: flex;
+  gap: 24px;
+  padding: 24px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+}
+
+.swatch-strip__item {
+  flex: 0 0 auto;
+  text-align: center;
+}
+
+.swatch-strip__code {
+  margin-top: 8px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===========================================================================
+   15. 帯（状態通知）
+   =========================================================================== */
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-left: 3px solid var(--k-accent);
+  background: var(--k-accent-soft);
+  border-radius: var(--r-1);
+  margin-bottom: 16px;
+}
+
+.notice--alert {
+  border-left-color: var(--k-danger);
+  background: var(--k-danger-soft);
+}
+
+.notice__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.notice__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+/* 容量ゲージ */
+.capacity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--k-ink-2);
+  white-space: nowrap;
+}
+
+.capacity__bar {
+  width: 64px;
+  height: 8px;
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+  overflow: hidden;
+}
+
+.capacity__bar--full {
+  width: 100%;
+  height: 12px;
+}
+
+.capacity__fill {
+  height: 100%;
+  color: var(--k-rule);
+  background-image: repeating-linear-gradient(
+    45deg,
+    currentColor 0 2px,
+    transparent 2px 5px
+  );
+}
+
+.capacity__fill--critical {
+  background: var(--k-danger);
+  background-image: none;
+}
+
+/* 免責 */
+.disclaimer {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 24px;
+  border-top: 3px solid var(--k-rule);
+  font-size: 0.8125rem;
+  color: var(--k-ink-2);
+}
+
+.disclaimer p {
+  max-width: 60em;
+}
+
+.disclaimer__actions {
+  margin-top: 12px;
+}
+
+/* 「記録できること」3列 — 枠線のみ・影なし */
+.pillars {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+  margin-top: 40px;
+}
+
+.pillars__cell {
+  padding: 20px;
+  border-right: 1px solid var(--k-hair);
+}
+
+.pillars__cell:last-child {
+  border-right: 0;
+}
+
+.pillars__title {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.pillars__body {
+  font-size: 0.8125rem;
+  color: var(--k-ink-2);
+}
+
+@media (max-width: 767px) {
+  .pillars {
+    grid-template-columns: 1fr;
+  }
+
+  .pillars__cell {
+    border-right: 0;
+    border-bottom: 1px solid var(--k-hair);
+  }
+
+  .pillars__cell:last-child {
+    border-bottom: 0;
+  }
+}
+
+/* 棚位置ピッカー — 断面図のミニチュア。ドロップダウンでなく空間で選ぶ。 */
+.shelf-picker {
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+  overflow: hidden;
+  max-width: 320px;
+}
+
+.shelf-picker__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--k-hair);
+  cursor: pointer;
+  color: var(--k-ink-2);
+  font-weight: 600;
+}
+
+.shelf-picker__row:last-child {
+  border-bottom: 0;
+}
+
+.shelf-picker__row input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.shelf-picker__row:hover {
+  background: var(--k-slab);
+}
+
+.shelf-picker__row:has(input:checked) {
+  background: var(--k-accent-soft);
+  color: var(--k-ink);
+  box-shadow: inset 3px 0 0 var(--k-accent);
+}
+
+.shelf-picker__row:has(input:focus-visible) {
+  outline: 2px solid var(--k-focus);
+  outline-offset: -2px;
+}
+
+/* 一覧 */
+.list {
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+}
+
+.list__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--k-hair);
+  text-decoration: none;
+  color: inherit;
+}
+
+.list__row:last-child {
+  border-bottom: 0;
+}
+
+.list__row:hover {
+  background: var(--k-slab);
+}
+
+.list__spacer {
+  flex: 1 1 auto;
+}
+
+.stack-8 > * + * {
+  margin-top: 8px;
+}
+
+.stack-16 > * + * {
+  margin-top: 16px;
+}
+
+.stack-24 > * + * {
+  margin-top: 24px;
+}
+
+.row-gap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.muted {
+  color: var(--k-ink-2);
+}
+
+dialog {
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-3);
+  background: var(--k-void);
+  color: var(--k-ink);
+  padding: 24px;
+  max-width: 32em;
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* ===========================================================================
+   16. ハイコントラスト（Windows）
+   ハッチ／ドットは forced-colors で消えるため、文字ラベルを必ず出す。
+   =========================================================================== */
+
+@media (forced-colors: active) {
+  .tile,
+  .shelf,
+  .compare,
+  .mix-rail,
+  .readout,
+  .baseline {
+    border: 1px solid CanvasText;
+  }
+
+  .segment:has(input:checked),
+  .tag:has(input:checked) {
+    border: 2px solid Highlight;
+  }
+}
+
+/* ===========================================================================
+   17. 印刷
+   =========================================================================== */
+
+/* 印刷のときだけ現れる記録一覧（書き出し画面の「印刷 / PDF」の中身）。 */
+.print-only {
+  display: none;
+}
+
+@media print {
+  .topbar,
+  .hero__actions,
+  .disclaimer__actions,
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  .print-sheet table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8mm;
+  }
+
+  .print-sheet caption {
+    text-align: left;
+    font-weight: 600;
+    padding-bottom: 2mm;
+  }
+
+  .print-sheet th,
+  .print-sheet td {
+    border: 1px solid #000;
+    padding: 1.5mm 2mm;
+    text-align: left;
+    vertical-align: top;
+    font-size: 9pt;
+    line-height: 1.4;
+  }
+
+  .print-sheet tr {
+    break-inside: avoid;
+  }
+
+  /* 焼成ID は区切りの無い長い文字列。折り返さないと列が紙からはみ出す。 */
+  .print-sheet .id {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 7pt;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+
+  /* 記録日時は区切りの無い長い文字列（ISO 8601）。折り返さないと列が紙からはみ出す。 */
+  .print-sheet .stamp {
+    font-size: 7pt;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+
+  .coursing {
+    background-image: none;
+  }
+
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  .shelf,
+  .compare,
+  .readout {
+    break-inside: avoid;
+    border: 1px solid #000;
+  }
+
+  .swatch--lg,
+  .swatch--md {
+    width: 42mm;
+    height: 42mm;
+  }
+
+  .compare {
+    overflow: visible;
+  }
+}
