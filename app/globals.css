@@ -1869,6 +1869,189 @@ dialog::backdrop {
 }
 
 /* ===========================================================================
+   18. 入門ガイド（/guide/）
+   本文ページ。棚段の枠線の言語（罫線・角丸2〜4px・影なし）をそのまま使う。
+   =========================================================================== */
+
+.guide {
+  max-width: 820px;
+}
+
+.guide__title {
+  margin-top: 8px;
+}
+
+.guide__lead {
+  margin-top: 16px;
+  font-size: 1.0625rem;
+  max-width: 38em;
+}
+
+.guide__toc {
+  margin-top: 24px;
+  padding: 16px 20px;
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+  background: var(--k-slab);
+}
+
+.guide__toc ol {
+  margin: 0;
+  padding-left: 1.4em;
+  display: grid;
+  gap: 2px 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.guide__toc a {
+  display: inline-block;
+  padding: 10px 0;
+  color: var(--k-ink);
+}
+
+.guide__block {
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 3px solid var(--k-rule);
+  scroll-margin-top: 72px;
+}
+
+.guide__block > * + * {
+  margin-top: 14px;
+}
+
+.guide__block p {
+  max-width: 40em;
+}
+
+.guide__table {
+  overflow-x: auto;
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+}
+
+.guide__table table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.guide__table th,
+.guide__table td {
+  padding: 12px 14px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--k-hair);
+}
+
+.guide__table thead th {
+  background: var(--k-slab);
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  color: var(--k-ink-2);
+}
+
+.guide__table tbody th {
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.guide__table tr:last-child th,
+.guide__table tr:last-child td {
+  border-bottom: 0;
+}
+
+.guide__steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: guide-step;
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+}
+
+.guide__steps li {
+  counter-increment: guide-step;
+  position: relative;
+  padding: 16px 16px 16px 60px;
+  border-bottom: 1px solid var(--k-hair);
+}
+
+.guide__steps li:last-child {
+  border-bottom: 0;
+}
+
+.guide__steps li::before {
+  content: counter(guide-step);
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--k-rule);
+  border-radius: var(--r-2);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.guide__steps a {
+  display: block;
+  margin-top: 6px;
+  padding: 10px 0;
+  color: var(--k-ink);
+  font-weight: 600;
+}
+
+.guide__note {
+  padding: 12px 16px;
+  border-left: 3px solid var(--k-accent);
+  background: var(--k-accent-soft);
+  border-radius: var(--r-1);
+}
+
+.guide__faq {
+  border: 1px solid var(--k-rule);
+  border-radius: var(--r-1);
+}
+
+.guide__faq-item {
+  padding: 16px;
+  border-bottom: 1px solid var(--k-hair);
+}
+
+.guide__faq-item:last-child {
+  border-bottom: 0;
+}
+
+.guide__faq dd {
+  margin: 8px 0 0;
+  max-width: 40em;
+}
+
+.guide__cta {
+  margin-top: 48px;
+}
+
+@media (max-width: 767px) {
+  .guide__toc ol {
+    grid-template-columns: 1fr;
+  }
+
+  .guide > * {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .guide__table {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+}
+
+/* ===========================================================================
    16. ハイコントラスト（Windows）
    ハッチ／ドットは forced-colors で消えるため、文字ラベルを必ず出す。
    =========================================================================== */

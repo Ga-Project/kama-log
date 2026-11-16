@@ -22,6 +22,9 @@ export default function Home() {
             <Link className="btn btn--secondary" href="/firings/">
               焼成を記録
             </Link>
+            <Link className="btn btn--quiet" href="/guide/">
+              記録のつけ方を読む
+            </Link>
           </div>
           <p className="hero__meta t-small">
             アカウント不要 ・ 端末内保存 ・ 無料 ・ 記録は外部に送信しません

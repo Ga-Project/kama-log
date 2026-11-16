@@ -6,7 +6,7 @@ import { absoluteUrl } from "../lib/site.mjs";
 export const dynamic = "force-static";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  return ["/", "/firings/", "/pieces/new/", "/compare/", "/export/"].map(
+  return ["/", "/firings/", "/pieces/new/", "/compare/", "/export/", "/guide/"].map(
     (path) => ({
       url: absoluteUrl(path),
       changeFrequency: "monthly",

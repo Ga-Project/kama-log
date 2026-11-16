@@ -16,6 +16,7 @@ const NAV = [
   { href: "/pieces/new/", label: "テストピース" },
   { href: "/compare/", label: "比較" },
   { href: "/export/", label: "書き出し" },
+  { href: "/guide/", label: "ガイド" },
 ];
 
 export default function TopBar() {

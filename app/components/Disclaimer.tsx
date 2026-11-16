@@ -25,6 +25,9 @@ export default function Disclaimer() {
       <p className="disclaimer__actions no-print">
         <Link className="btn btn--secondary btn--small" href="/export/">
           書き出す
+        </Link>{" "}
+        <Link className="btn btn--quiet btn--small" href="/guide/">
+          記録のつけ方ガイド
         </Link>
       </p>
     </footer>
