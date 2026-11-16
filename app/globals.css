@@ -1879,6 +1879,7 @@ dialog::backdrop {
 
 .guide__title {
   margin-top: 8px;
+  word-break: auto-phrase;
 }
 
 .guide__lead {
@@ -1912,27 +1913,28 @@ dialog::backdrop {
 .guide__block {
   margin-top: 48px;
   padding-top: 20px;
-  border-top: 3px solid var(--k-rule);
+  border-top: 1px solid var(--k-hair);
   scroll-margin-top: 72px;
+}
+
+/* 章の切り替えとして強く効かせるのは「項目表」と「進め方」の2か所だけ。 */
+#items,
+#steps {
+  border-top: 3px solid var(--k-rule);
 }
 
 .guide__block > * + * {
   margin-top: 14px;
 }
 
-.guide__block p {
-  max-width: 40em;
-}
 
 .guide__table {
-  overflow-x: auto;
   border: 1px solid var(--k-rule);
   border-radius: var(--r-1);
 }
 
 .guide__table table {
   width: 100%;
-  min-width: 560px;
   border-collapse: collapse;
   font-size: 0.9375rem;
 }
@@ -1953,7 +1955,7 @@ dialog::backdrop {
 }
 
 .guide__table tbody th {
-  white-space: nowrap;
+  min-width: 5.5em;
   font-weight: 700;
 }
 
@@ -2045,9 +2047,50 @@ dialog::backdrop {
     padding-right: 16px;
   }
 
-  .guide__table {
-    margin-left: 16px;
-    margin-right: 16px;
+  /* 狭い幅では表をやめ、行ごとに積む（横スクロールの手がかりが罫線言語に無いため）。 */
+  .guide__table table,
+  .guide__table tbody,
+  .guide__table tr,
+  .guide__table th,
+  .guide__table td {
+    display: block;
+    width: 100%;
+  }
+
+  .guide__table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .guide__table tbody th {
+    padding: 12px 14px 4px;
+    border-bottom: 0;
+    background: var(--k-slab);
+  }
+
+  .guide__table tbody td {
+    padding: 8px 14px;
+    border-bottom: 0;
+  }
+
+  .guide__table tbody td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    color: var(--k-ink-2);
+  }
+
+  .guide__table tbody tr {
+    border-bottom: 1px solid var(--k-hair);
+    padding-bottom: 6px;
+  }
+
+  .guide__table tbody tr:last-child {
+    border-bottom: 0;
   }
 }
 

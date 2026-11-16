@@ -3,7 +3,9 @@ import Link from "next/link";
 import { absoluteUrl } from "../../lib/site.mjs";
 import {
   FAQ,
+  GUIDE_HEADLINE,
   GUIDE_PATH,
+  MINIMUM_ITEMS,
   RECORD_ITEMS,
   buildGuideJsonLd,
   jsonLdScript,
@@ -26,27 +28,25 @@ export const metadata: Metadata = {
     locale: "ja_JP",
     siteName: "窯ログ",
   },
-  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
+  // 共有画像は用意していないので、大きな画像カードは指定しない。
+  twitter: { card: "summary", title: TITLE, description: DESCRIPTION },
 };
 
 export default function GuidePage() {
-  const jsonLd = buildGuideJsonLd(absoluteUrl, TITLE, DESCRIPTION);
+  const jsonLd = buildGuideJsonLd(absoluteUrl, DESCRIPTION);
   return (
     <>
       <main id="main" tabIndex={-1} className="section guide">
         <p className="t-label">記録のつけ方</p>
-        <h1 className="t-h1 guide__title">
-          テストピースと窯焼きの記録のつけ方
-        </h1>
+        <h1 className="t-h1 guide__title">{GUIDE_HEADLINE}</h1>
         <p className="guide__lead">
-          自作釉薬の試験では、良い焼きが出ても「どうやったか」が残っていなければ二度と出せません。
-          ここでは、あとで同じ焼きを再現したり、違いを見比べたりするために、何を残しておくとよいかを順に説明します。
+          自作釉薬の試験では、良い焼きが出ても「どうやったか」が残っていなければ二度と出せません。ここでは、あとで同じ焼きを再現したり、違いを見比べたりするために、何を残しておくとよいかを順に説明します。
         </p>
 
         <nav className="guide__toc" aria-label="このページの内容">
           <ol>
             <li><a href="#why">なぜ記録が要るのか</a></li>
-            <li><a href="#items">残しておきたい8項目</a></li>
+            <li><a href="#items">残しておきたい{RECORD_ITEMS.length}項目</a></li>
             <li><a href="#one">変えるのは1回に1つ</a></li>
             <li><a href="#curve">焼成の記録と温度カーブ</a></li>
             <li><a href="#steps">窯ログでの進め方</a></li>
@@ -57,21 +57,19 @@ export default function GuidePage() {
         <section id="why" className="guide__block">
           <h2 className="t-h2">なぜ記録が要るのか</h2>
           <p>
-            同じ調合でも、素地の土、原料のロット、窯の癖、酸化か還元か、棚の位置、昇温と降温の経過によって、焼き上がりは変わります。
-            調合のメモだけでは、うまくいった焼きを再現できないのはこのためです。
+            同じ調合でも、素地の土、原料のロット、窯の癖、酸化か還元か、棚の位置、昇温と降温の経過によって、焼き上がりは変わります。調合のメモだけでは、うまくいった焼きを再現できないのはこのためです。
           </p>
           <p>
-            一方で実際の記録は、手帳のメモ、スマホの写真、頭の中に散らばりがちです。
-            窯出しの直後に、条件と結果を同じ場所へ残しておくと、数か月後でも読み返せます。
+            一方で実際の記録は、手帳のメモ、スマホの写真、頭の中に散らばりがちです。窯出しの直後に、条件と結果を同じ場所へ残しておくと、数か月後でも読み返せます。
           </p>
         </section>
 
         <section id="items" className="guide__block">
-          <h2 className="t-h2">残しておきたい8項目</h2>
+          <h2 className="t-h2">残しておきたい{RECORD_ITEMS.length}項目</h2>
           <p>
-            すべてを完璧に書く必要はありません。まず識別番号・調合・焼成・結果の4つから始めて、続けるうちに増やしていけば十分です。
+            すべてを完璧に書く必要はありません。まず{MINIMUM_ITEMS.join("・")}の{MINIMUM_ITEMS.length}つから始めて、続けるうちに増やしていけば十分です。
           </p>
-          <div className="guide__table" role="region" aria-label="記録項目の一覧" tabIndex={0}>
+          <div className="guide__table">
             <table>
               <thead>
                 <tr>
@@ -84,8 +82,8 @@ export default function GuidePage() {
                 {RECORD_ITEMS.map((item) => (
                   <tr key={item.name}>
                     <th scope="row">{item.name}</th>
-                    <td>{item.what}</td>
-                    <td>{item.tip}</td>
+                    <td data-label="何を書くか">{item.what}</td>
+                    <td data-label="書き方のコツ">{item.tip}</td>
                   </tr>
                 ))}
               </tbody>
@@ -96,24 +94,20 @@ export default function GuidePage() {
         <section id="one" className="guide__block">
           <h2 className="t-h2">変えるのは1回に1つ</h2>
           <p>
-            調合を少しずつ変えながら試すときは、1回に変える材料を1つにします。
-            材料を同時に2つ以上動かすと、結果が変わった原因がどちらなのか分からなくなります。
+            調合を少しずつ変えながら試すときは、1回に変える材料を1つにします。材料を同時に2つ以上動かすと、結果が変わった原因がどちらなのか分からなくなります。
           </p>
           <p>
-            同じ調合を、素地や焼成を変えて焼いた場合も同じです。前回から変えた条件に印を付けておくと、
-            並べたときに「どこが違ったか」がすぐ読み取れます。
+            同じ調合を、素地や焼成を変えて焼いた場合も同じです。前回から変えた条件に印を付けておくと、並べたときに「どこが違ったか」がすぐ読み取れます。
           </p>
         </section>
 
         <section id="curve" className="guide__block">
           <h2 className="t-h2">焼成の記録と温度カーブ</h2>
           <p>
-            焼成では、最高温度だけでなく「どう上げて、どれだけ保って、どう下げたか」が結果に効きます。
-            窯の前にいる間に、一定の間隔で経過時間と温度を控えておくと、あとから温度カーブとして描き直せます。
+            焼成では、最高温度だけでなく「どう上げて、どれだけ保って、どう下げたか」が結果に効きます。窯の前にいる間に、一定の間隔で経過時間と温度を控えておくと、あとから温度カーブとして描き直せます。
           </p>
           <p>
-            還元焼成の場合は、雰囲気を切り替えた時刻も残します。
-            棚の段数と、各ピースをどの棚に置いたかも一緒に記録しておくと、同じ窯の中での差も見比べられます。
+            還元焼成の場合は、雰囲気を切り替えた時刻も残します。棚の段数と、各ピースをどの棚に置いたかも一緒に記録しておくと、同じ窯の中での差も見比べられます。
           </p>
         </section>
 
