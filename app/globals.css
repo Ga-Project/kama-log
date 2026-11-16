@@ -1955,7 +1955,9 @@ dialog::backdrop {
 }
 
 .guide__table tbody th {
-  min-width: 5.5em;
+  /* 項目名は最長4文字。語の途中で折らない（padding 左右 28px を足した幅を確保）。 */
+  min-width: calc(4em + 28px);
+  white-space: nowrap;
   font-weight: 700;
 }
 
@@ -2000,7 +2002,7 @@ dialog::backdrop {
 }
 
 .guide__steps a {
-  display: block;
+  display: inline-block;
   margin-top: 6px;
   padding: 10px 0;
   color: var(--k-ink);
@@ -2042,9 +2044,9 @@ dialog::backdrop {
     grid-template-columns: 1fr;
   }
 
-  .guide > * {
-    padding-left: 16px;
-    padding-right: 16px;
+  .guide__toc {
+    margin-left: 16px;
+    margin-right: 16px;
   }
 
   /* 狭い幅では表をやめ、行ごとに積む（横スクロールの手がかりが罫線言語に無いため）。 */

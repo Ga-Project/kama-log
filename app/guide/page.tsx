@@ -14,7 +14,7 @@ import Disclaimer from "../components/Disclaimer";
 
 const TITLE = "テストピースと窯焼きの記録のつけ方 — 自作釉薬を再現するために";
 const DESCRIPTION =
-  "自作釉薬のテストピースで、何を記録しておけば同じ焼きを再現できるのか。識別番号・調合・素地・施釉・焼成・棚位置・結果・写真の8項目と、続けるための進め方をまとめた入門ガイドです。";
+  "自作釉薬のテストピースで、何を記録しておけば同じ焼きを再現できるのか。識別番号・配合・素地・施釉・焼成・棚位置・結果・写真の8項目と、続けるための進め方をまとめた入門ガイドです。";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -57,7 +57,7 @@ export default function GuidePage() {
         <section id="why" className="guide__block">
           <h2 className="t-h2">なぜ記録が要るのか</h2>
           <p>
-            同じ調合でも、素地の土、原料のロット、窯の癖、酸化か還元か、棚の位置、昇温と降温の経過によって、焼き上がりは変わります。調合のメモだけでは、うまくいった焼きを再現できないのはこのためです。
+            同じ配合でも、素地の土、原料のロット、窯の癖、酸化か還元か、棚の位置、昇温と降温の経過によって、焼き上がりは変わります。配合のメモだけでは、うまくいった焼きを再現できないのはこのためです。
           </p>
           <p>
             一方で実際の記録は、手帳のメモ、スマホの写真、頭の中に散らばりがちです。窯出しの直後に、条件と結果を同じ場所へ残しておくと、数か月後でも読み返せます。
@@ -70,20 +70,20 @@ export default function GuidePage() {
             すべてを完璧に書く必要はありません。まず{MINIMUM_ITEMS.join("・")}の{MINIMUM_ITEMS.length}つから始めて、続けるうちに増やしていけば十分です。
           </p>
           <div className="guide__table">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">項目</th>
-                  <th scope="col">何を書くか</th>
-                  <th scope="col">書き方のコツ</th>
+            <table role="table">
+              <thead role="rowgroup">
+                <tr role="row">
+                  <th scope="col" role="columnheader">項目</th>
+                  <th scope="col" role="columnheader">何を書くか</th>
+                  <th scope="col" role="columnheader">書き方のコツ</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody role="rowgroup">
                 {RECORD_ITEMS.map((item) => (
-                  <tr key={item.name}>
-                    <th scope="row">{item.name}</th>
-                    <td data-label="何を書くか">{item.what}</td>
-                    <td data-label="書き方のコツ">{item.tip}</td>
+                  <tr key={item.name} role="row">
+                    <th scope="row" role="rowheader">{item.name}</th>
+                    <td role="cell" data-label="何を書くか">{item.what}</td>
+                    <td role="cell" data-label="書き方のコツ">{item.tip}</td>
                   </tr>
                 ))}
               </tbody>
@@ -94,10 +94,10 @@ export default function GuidePage() {
         <section id="one" className="guide__block">
           <h2 className="t-h2">変えるのは1回に1つ</h2>
           <p>
-            調合を少しずつ変えながら試すときは、1回に変える材料を1つにします。材料を同時に2つ以上動かすと、結果が変わった原因がどちらなのか分からなくなります。
+            配合を少しずつ変えながら試すときは、1回に変える材料を1つにします。材料を同時に2つ以上動かすと、結果が変わった原因がどちらなのか分からなくなります。
           </p>
           <p>
-            同じ調合を、素地や焼成を変えて焼いた場合も同じです。前回から変えた条件に印を付けておくと、並べたときに「どこが違ったか」がすぐ読み取れます。
+            同じ配合を、素地や焼成を変えて焼いた場合も同じです。前回から変えた条件に印を付けておくと、並べたときに「どこが違ったか」がすぐ読み取れます。
           </p>
         </section>
 
@@ -121,12 +121,12 @@ export default function GuidePage() {
             </li>
             <li>
               <strong>テストピースを記録する。</strong>
-              識別番号・調合・所見・写真を入れ、どの焼成のどの棚に置いたかを選びます。
+              識別番号・配合・所見・写真を入れ、どの焼成のどの棚に置いたかを選びます。
               <Link href="/pieces/new/">テストピースの記録へ</Link>
             </li>
             <li>
-              <strong>同じ調合を並べて比べる。</strong>
-              同じ調合のテストピースを横に並べ、前回と変わった条件に印を付けて表示します。
+              <strong>同じ配合を並べて比べる。</strong>
+              同じ配合のテストピースを横に並べ、前回と変わった条件に印を付けて表示します。
               <Link href="/compare/">並べて比べる</Link>
             </li>
             <li>
