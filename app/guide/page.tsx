@@ -10,6 +10,7 @@ import {
   buildGuideJsonLd,
   jsonLdScript,
 } from "../../lib/guide.mjs";
+import { TILE_PATH } from "../../lib/tile-guide.mjs";
 import Disclaimer from "../components/Disclaimer";
 
 const TITLE = "テストピースと窯焼きの記録のつけ方 — 自作釉薬を再現するために";
@@ -40,7 +41,9 @@ export default function GuidePage() {
         <p className="t-label">記録のつけ方</p>
         <h1 className="t-h1 guide__title">{GUIDE_HEADLINE}</h1>
         <p className="guide__lead">
-          自作釉薬の試験では、良い焼きが出ても「どうやったか」が残っていなければ二度と出せません。ここでは、あとで同じ焼きを再現したり、違いを見比べたりするために、何を残しておくとよいかを順に説明します。
+          自作釉薬の試験では、良い焼きが出ても「どうやったか」が残っていなければ再現しにくくなります。ここでは、あとで同じ焼きを再現したり、違いを見比べたりするために、何を残しておくとよいかを順に説明します。ピースの形や識別番号の付け方は
+          <Link href={TILE_PATH}>テストピースを作る前に決めること</Link>
+          で説明しています。
         </p>
 
         <nav className="guide__toc" aria-label="このページの内容">
@@ -70,7 +73,7 @@ export default function GuidePage() {
             すべてを完璧に書く必要はありません。まず{MINIMUM_ITEMS.join("・")}の{MINIMUM_ITEMS.length}つから始めて、続けるうちに増やしていけば十分です。
           </p>
           <div className="guide__table">
-            <table role="table">
+            <table role="table" aria-label="残しておきたい記録項目">
               <thead role="rowgroup">
                 <tr role="row">
                   <th scope="col" role="columnheader">項目</th>
@@ -98,6 +101,11 @@ export default function GuidePage() {
           </p>
           <p>
             同じ調合を、素地や焼成を変えて焼いた場合も同じです。前回から変えた条件に印を付けておくと、並べたときに「どこが違ったか」がすぐ読み取れます。
+          </p>
+          <p>
+            調合を変えながら並べる具体例は、
+            <Link href={TILE_PATH}>テストピースを作る前に決めること</Link>
+            にあります。
           </p>
         </section>
 

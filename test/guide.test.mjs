@@ -52,7 +52,7 @@ test("Article.headline は画面の h1 と同じ", () => {
 
 test("sitemap にガイドが入っている", () => {
   const src = readFileSync(new URL("../app/sitemap.ts", import.meta.url), "utf8");
-  assert.ok(src.includes(`"${GUIDE_PATH}"`));
+  assert.match(src, /^\s+GUIDE_PATH,$/m);
 });
 
 test("目次の href と section の id が一致する", () => {
@@ -67,4 +67,12 @@ test("本文に和文の途中の半角スペースが入らない書き方に�
   const src = readFileSync(new URL("../app/guide/page.tsx", import.meta.url), "utf8");
   // 和文の行末で改行し、次行も和文で始まる書き方は JSX で半角スペースになる。
   assert.ok(!/[^\x00-\x7f]\n\s+[^\x00-\x7f]/.test(src));
+});
+
+test("JSON-LD の構造（共通化後も変わらない）: 日付・パンくず・種別", () => {
+  const ld = buildGuideJsonLd(abs, "d");
+  assert.deepEqual(ld.map((x) => x["@type"]), ["Article", "BreadcrumbList", "FAQPage"]);
+  assert.equal(ld[0].datePublished, "2026-11-16");
+  assert.ok(ld[0].dateModified >= ld[0].datePublished);
+  assert.deepEqual(ld[1].itemListElement.map((i) => [i.position, i.name]), [[1, "窯ログ"], [2, "記録のつけ方"]]);
 });

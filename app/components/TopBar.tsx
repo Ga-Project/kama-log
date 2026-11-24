@@ -103,7 +103,13 @@ export default function TopBar() {
             key={item.href}
             className="topbar__link"
             href={item.href}
-            aria-current={pathname === item.href ? "page" : undefined}
+            aria-current={
+              pathname === item.href
+                ? "page"
+                : item.href === "/guide/" && pathname.startsWith(item.href)
+                  ? "true"
+                  : undefined
+            }
           >
             {item.label}
           </Link>

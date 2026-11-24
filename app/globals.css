@@ -430,7 +430,8 @@ a:hover {
   background: var(--k-slab);
 }
 
-.topbar__link[aria-current="page"] {
+.topbar__link[aria-current="page"],
+.topbar__link[aria-current="true"] {
   color: var(--k-ink);
   font-weight: 700;
   /* 現在地は色ではなく下辺の線で示す（色だけに頼らない）。 */
@@ -1904,6 +1905,13 @@ dialog::backdrop {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+/* 親ガイドへ戻るリンク。12px の文字だけでは押しにくいので当たり判定を広げる。 */
+.guide__crumb a {
+  display: inline-block;
+  padding: 10px 0;
+  color: inherit;
+}
+
 .guide__toc a {
   display: inline-block;
   padding: 10px 0;
@@ -1955,7 +1963,7 @@ dialog::backdrop {
 }
 
 .guide__table tbody th {
-  /* 項目名は最長4文字。語の途中で折らない（padding 左右 28px を足した幅を確保）。 */
+  /* 項目名は語の途中で折らず、1行で表示する（padding 左右 28px を足した幅を確保）。 */
   min-width: calc(4em + 28px);
   white-space: nowrap;
   font-weight: 700;
